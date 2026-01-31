@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
-import Landing from './Landing';
-import Game from './Game';
-import './App.css';
+import React, { useState } from "react";
+import Landing from "./Landing";
+import Game from "./Game";
+import "./App.css";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('landing');
+  const [currentPage, setCurrentPage] = useState("landing");
 
   const handlePlay = () => {
-    setCurrentPage('game');
+    setCurrentPage("game");
   };
 
   const handleBack = () => {
-    setCurrentPage('landing');
+    setCurrentPage("landing");
   };
 
   return (
     <div className="app">
-      {currentPage === 'landing' ? (
+      {currentPage === "landing" ? (
         <Landing onPlay={handlePlay} />
       ) : (
         <>

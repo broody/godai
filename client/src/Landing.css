@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap");
 
 .landing {
   min-height: 100vh;
   background: linear-gradient(180deg, #0a0a1a 0%, #151530 50%, #0a0a1a 100%);
   color: white;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   overflow-x: hidden;
 }
 
@@ -24,7 +24,7 @@
   left: 0;
   right: 0;
   height: 50%;
-  background: 
+  background:
     linear-gradient(0deg, rgba(100, 100, 255, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(100, 100, 255, 0.05) 1px, transparent 1px);
   background-size: 50px 50px;
@@ -43,14 +43,18 @@
   align-items: center;
   padding: 20px 40px;
   z-index: 100;
-  background: linear-gradient(180deg, rgba(10, 10, 26, 0.9) 0%, transparent 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 26, 0.9) 0%,
+    transparent 100%
+  );
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 24px;
   font-weight: 700;
 }
@@ -84,7 +88,9 @@
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .btn-connect:hover {
@@ -108,7 +114,7 @@
 }
 
 .hero h1 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 120px;
   font-weight: 900;
   margin: 0;
@@ -124,7 +130,7 @@
 }
 
 .hero h2 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 32px;
   font-weight: 400;
   color: #6366f1;
@@ -147,7 +153,8 @@
   margin-bottom: 60px;
 }
 
-.btn-primary, .btn-secondary {
+.btn-primary,
+.btn-secondary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -191,7 +198,7 @@
 }
 
 .stat-value {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 48px;
   font-weight: 700;
   background: linear-gradient(135deg, #fff 0%, #6366f1 100%);
@@ -234,8 +241,13 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
 /* Sections */
@@ -246,7 +258,7 @@
 }
 
 .section h2 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 48px;
   text-align: center;
   margin-bottom: 16px;
@@ -274,7 +286,9 @@
   border-radius: 20px;
   padding: 40px;
   text-align: center;
-  transition: transform 0.3s, border-color 0.3s;
+  transition:
+    transform 0.3s,
+    border-color 0.3s;
 }
 
 .step:hover {
@@ -283,7 +297,7 @@
 }
 
 .step-num {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 14px;
   color: #6366f1;
   letter-spacing: 4px;
@@ -302,7 +316,12 @@
 
 /* Elements Section */
 .elements-section {
-  background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.05) 50%, transparent 100%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(99, 102, 241, 0.05) 50%,
+    transparent 100%
+  );
 }
 
 .elements-grid {
@@ -325,7 +344,7 @@
 }
 
 .element-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -351,7 +370,7 @@
 }
 
 .element-card h3 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 20px;
   margin-bottom: 8px;
 }
@@ -371,7 +390,7 @@
 }
 
 .hierarchy-title {
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 14px;
   color: #666;
   letter-spacing: 4px;
@@ -416,7 +435,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  font-family: 'Orbitron', sans-serif;
+  font-family: "Orbitron", sans-serif;
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 16px;
@@ -461,19 +480,19 @@
     text-align: center;
     padding: 120px 40px 60px;
   }
-  
+
   .hero h1 {
     font-size: 72px;
   }
-  
+
   .hero-visual {
     display: none;
   }
-  
+
   .steps {
     grid-template-columns: 1fr;
   }
-  
+
   .elements-grid {
     grid-template-columns: repeat(2, 1fr);
   }
