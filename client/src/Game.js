@@ -64,9 +64,9 @@ function SnakeLink({ position, color, isHead }) {
   );
 }
 
-function Orb({ position, color, element }) {
+function Orb({ x, y, z, color, element }) {
   return (
-    <group position={[position.x - 10, position.y + 0.5, position.z - 10]}>
+    <group position={[x - 10, y + 0.5, z - 10]}>
       <Sphere args={[0.4, 16, 16]}>
         <meshStandardMaterial
           color={color}
