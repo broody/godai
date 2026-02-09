@@ -141,7 +141,7 @@
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
-                this.tick = 0;
+                this.tickCount = 0;
                 this.running = false;
                 this.snakes = new Map();
                 this.food = new Set();
@@ -154,7 +154,7 @@
                 const logEl = document.getElementById('log');
                 const entry = document.createElement('div');
                 entry.className = `entry ${type}`;
-                entry.textContent = `[T${this.tick}] ${msg}`;
+                entry.textContent = `[T${this.tickCount}] ${msg}`;
                 logEl.appendChild(entry);
                 logEl.scrollTop = logEl.scrollHeight;
                 if (logEl.children.length > 100) {
@@ -166,7 +166,7 @@
                 this.snakes.clear();
                 this.food.clear();
                 this.moveQueue.clear();
-                this.tick = 0;
+                this.tickCount = 0;
                 
                 // Spawn player
                 this.spawnSnake(this.playerId, true);
@@ -288,7 +288,7 @@
             }
             
             tick() {
-                this.tick++;
+                this.tickCount++;
                 
                 // Process bot moves (AI)
                 for (const snake of this.snakes.values()) {
@@ -586,7 +586,7 @@
             }
             
             updateUI() {
-                document.getElementById('tickDisplay').textContent = this.tick;
+                document.getElementById('tickDisplay').textContent = this.tickCount;
                 
                 const alive = Array.from(this.snakes.values()).filter(s => s.alive).length;
                 document.getElementById('aliveDisplay').textContent = alive;
