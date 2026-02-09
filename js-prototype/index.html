@@ -201,14 +201,35 @@
             
             spawnSnake(id, isPlayer) {
                 let attempts = 0;
-                let x, y;
+                let x, y, dir;
                 
-                // Find empty spot
+                // Find empty spot with room for entire body
                 do {
                     x = Math.floor(Math.random() * GRID_SIZE);
                     y = Math.floor(Math.random() * GRID_SIZE);
+                    dir = Math.floor(Math.random() * 4);
+                    
+                    // Check if entire snake fits within bounds
+                    let dx = 0, dy = 0;
+                    switch (dir) {
+                        case 0: dy = 1; break; // facing up, body extends down
+                        case 1: dx = -1; break; // facing right, body extends left
+                        case 2: dy = -1; break; // facing down, body extends up
+                        case 3: dx = 1; break; // facing left, body extends right
+                    }
+                    
+                    let fits = true;
+                    for (let i = 0; i < INITIAL_LENGTH; i++) {
+                        const bx = x + dx * i;
+                        const by = y + dy * i;
+                        if (bx < 0 || bx >= GRID_SIZE || by < 0 || by >= GRID_SIZE) {
+                            fits = false;
+                            break;
+                        }
+                    }
+                    
                     attempts++;
-                } while (this.isOccupied(x, y) && attempts < 100);
+                } while ((!fits || this.isOccupied(x, y)) && attempts < 100);
                 
                 if (attempts >= 100) return false;
                 
@@ -217,7 +238,7 @@
                     isPlayer,
                     body: [],
                     alive: true,
-                    direction: Math.floor(Math.random() * 4), // 0=up,1=right,2=down,3=left
+                    direction: dir,
                     lastMoveTime: 0,
                     movesThisWindow: 0,
                     windowStart: Date.now(),
@@ -234,8 +255,8 @@
                 }
                 for (let i = 0; i < INITIAL_LENGTH; i++) {
                     snake.body.push({
-                        x: (x + dx * i + GRID_SIZE) % GRID_SIZE,
-                        y: (y + dy * i + GRID_SIZE) % GRID_SIZE
+                        x: x + dx * i,
+                        y: y + dy * i
                     });
                 }
                 
@@ -345,10 +366,17 @@
                     let ny = head.y;
                     
                     switch (direction) {
-                        case 0: ny = (ny - 1 + GRID_SIZE) % GRID_SIZE; break; // up
-                        case 1: nx = (nx + 1) % GRID_SIZE; break; // right
-                        case 2: ny = (ny + 1) % GRID_SIZE; break; // down
-                        case 3: nx = (nx - 1 + GRID_SIZE) % GRID_SIZE; break; // left
+                        case 0: ny = ny - 1; break; // up
+                        case 1: nx = nx + 1; break; // right
+                        case 2: ny = ny + 1; break; // down
+                        case 3: nx = nx - 1; break; // left
+                    }
+                    
+                    // Check wall collision
+                    if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) {
+                        deadSnakes.add(id);
+                        if (snake.isPlayer) this.log('You hit a wall!', 'kill');
+                        continue;
                     }
                     
                     nextPositions.set(id, {x: nx, y: ny, snake});
@@ -494,10 +522,15 @@
                     let nx = head.x;
                     let ny = head.y;
                     switch (dir) {
-                        case 0: ny = (ny - 1 + GRID_SIZE) % GRID_SIZE; break;
-                        case 1: nx = (nx + 1) % GRID_SIZE; break;
-                        case 2: ny = (ny + 1) % GRID_SIZE; break;
-                        case 3: nx = (nx - 1 + GRID_SIZE) % GRID_SIZE; break;
+                        case 0: ny = ny - 1; break;
+                        case 1: nx = nx + 1; break;
+                        case 2: ny = ny + 1; break;
+                        case 3: nx = nx - 1; break;
+                    }
+                    
+                    // Check wall collision - FATAL
+                    if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) {
+                        return null;
                     }
                     
                     // Check self collision (always fatal)
@@ -561,13 +594,17 @@
                             let theirNextX = otherHead.x;
                             let theirNextY = otherHead.y;
                             switch (theirDir) {
-                                case 0: theirNextY = (theirNextY - 1 + GRID_SIZE) % GRID_SIZE; break;
-                                case 1: theirNextX = (theirNextX + 1) % GRID_SIZE; break;
-                                case 2: theirNextY = (theirNextY + 1) % GRID_SIZE; break;
-                                case 3: theirNextX = (theirNextX - 1 + GRID_SIZE) % GRID_SIZE; break;
+                                case 0: theirNextY = theirNextY - 1; break;
+                                case 1: theirNextX = theirNextX + 1; break;
+                                case 2: theirNextY = theirNextY + 1; break;
+                                case 3: theirNextX = theirNextX - 1; break;
                             }
                             
-                            if (nx === theirNextX && ny === theirNextY && snake.body.length > other.body.length) {
+                            // Only intercept if they're not hitting a wall
+                            if (theirNextX >= 0 && theirNextX < GRID_SIZE && 
+                                theirNextY >= 0 && theirNextY < GRID_SIZE &&
+                                nx === theirNextX && ny === theirNextY && 
+                                snake.body.length > other.body.length) {
                                 score += 1500; // Intercept and crush!
                             }
                         }
@@ -589,7 +626,15 @@
                         }
                     }
                     
-                    // 2. SURVIVAL: Check for danger (other snake heads nearby)
+                    // 2. WALL AVOIDANCE: Stay away from edges
+                    const distToWall = Math.min(nx, ny, GRID_SIZE - 1 - nx, GRID_SIZE - 1 - ny);
+                    if (distToWall === 0) {
+                        score -= 10000; // This shouldn't happen (filtered above), but just in case
+                    } else if (distToWall <= 2) {
+                        score -= (3 - distToWall) * 200; // Penalty for being close to walls
+                    }
+                    
+                    // 3. SURVIVAL: Check for danger (other snake heads nearby)
                     let dangerScore = 0;
                     for (const other of this.snakes.values()) {
                         if (other.id === snake.id || !other.alive) continue;
@@ -601,7 +646,7 @@
                     }
                     score += dangerScore;
                     
-                    // 3. FOOD: Near food is good
+                    // 4. FOOD: Near food is good
                     let foodScore = 0;
                     for (const foodKey of this.food) {
                         const [fx, fy] = foodKey.split(',').map(Number);
@@ -614,12 +659,15 @@
                     }
                     score += foodScore;
                     
-                    // 4. SPACE: Keep some room to maneuver
+                    // 5. SPACE: Keep some room to maneuver (no wrapping)
                     let space = 0;
                     for (let dx = -2; dx <= 2; dx++) {
                         for (let dy = -2; dy <= 2; dy++) {
-                            const cx = (nx + dx + GRID_SIZE) % GRID_SIZE;
-                            const cy = (ny + dy + GRID_SIZE) % GRID_SIZE;
+                            const cx = nx + dx;
+                            const cy = ny + dy;
+                            // Skip if outside bounds
+                            if (cx < 0 || cx >= GRID_SIZE || cy < 0 || cy >= GRID_SIZE) continue;
+                            
                             let occupied = false;
                             for (const other of this.snakes.values()) {
                                 if (!other.alive) continue;
@@ -675,6 +723,11 @@
                     this.ctx.lineTo(CANVAS_SIZE, i * CELL_SIZE);
                     this.ctx.stroke();
                 }
+                
+                // Draw walls (red border)
+                this.ctx.strokeStyle = '#f00';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
                 
                 // Draw food
                 this.ctx.fillStyle = '#f0f';
