@@ -136,7 +136,7 @@
         const CELL_SIZE = CANVAS_SIZE / GRID_SIZE; // 4px per cell
         const TICK_RATE_MS = 100;     // 10 ticks per second
         const MOVE_WINDOW_MS = 20000; // 20 second window (configurable rate)
-        const FOOD_PER_TICK = 8;      // Food spawn rate
+        const INITIAL_FOOD = 500;     // Fixed food count at game start
         const MAX_BOTS = 99;          // 99 bots + 1 player = 100
         const INITIAL_LENGTH = 5;
         
@@ -188,8 +188,8 @@
                     this.spawnSnake(`bot_${i}`, false);
                 }
                 
-                // Initial food
-                for (let i = 0; i < 50; i++) {
+                // Initial food - fixed for entire game
+                for (let i = 0; i < INITIAL_FOOD; i++) {
                     this.spawnFood();
                 }
                 
@@ -420,16 +420,7 @@
                     }
                 }
                 
-                // Spawn new food
-                for (let i = 0; i < FOOD_PER_TICK; i++) {
-                    this.spawnFood();
-                }
-                
-                // Cap food count
-                while (this.food.size > 200) {
-                    const first = this.food.values().next().value;
-                    this.food.delete(first);
-                }
+                // Food is fixed - no respawning
                 
                 this.updateUI();
             }
