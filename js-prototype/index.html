@@ -59,7 +59,6 @@
         }
         .legend span { display: flex; align-items: center; gap: 5px; }
         .dot { width: 10px; height: 10px; display: inline-block; }
-        .player-dot { background: #0f0; box-shadow: 0 0 5px #0f0; }
         .bot-dot { background: #0ff; }
         .food-dot { background: #f0f; border-radius: 50%; }
         .dead-dot { background: #333; }
@@ -82,7 +81,7 @@
     </style>
 </head>
 <body>
-    <h1>🐍 SNAKE ARENA BR</h1>
+    <h1>🐍 SNAKE ARENA BR - SIMULATION</h1>
     
     <div class="controls">
         <div class="stat">
@@ -98,31 +97,29 @@
             <value id="foodDisplay">0</value>
         </div>
         <div class="stat">
-            <label>YOUR MOVES</label>
-            <value id="movesDisplay">3/3</value>
+            <label>BOT RATE</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <input type="number" id="moveRateInput" value="3" min="1" max="100" style="width: 40px; background: #222; border: 1px solid #333; color: #0f0; padding: 4px;">
+                <span style="font-size: 11px; color: #666;">/ 20s</span>
+            </div>
         </div>
         <div class="stat">
             <label>
                 <input type="checkbox" id="rateLimitCheck" checked style="margin-right: 4px;">
                 RATE LIMIT
             </label>
-            <div style="display: flex; align-items: center; gap: 4px; margin-top: 4px;">
-                <input type="number" id="moveRateInput" value="3" min="1" max="100" style="width: 40px; background: #222; border: 1px solid #333; color: #0f0; padding: 4px;">
-                <span style="font-size: 11px; color: #666;">/ 20s</span>
-            </div>
         </div>
         <button id="startBtn">START</button>
         <button id="pauseBtn" disabled>PAUSE</button>
         <button id="resetBtn">RESET</button>
         <div style="font-size: 12px; color: #666;">
-            ARROWS to move • Uncheck for realtime
+            100 bots • Watch them fight
         </div>
     </div>
     
     <canvas id="gameCanvas" width="800" height="800"></canvas>
     
     <div class="legend">
-        <span><span class="dot player-dot"></span> You</span>
         <span><span class="dot bot-dot"></span> Bots</span>
         <span><span class="dot food-dot"></span> Food</span>
         <span><span class="dot dead-dot"></span> Dead</span>
@@ -140,7 +137,7 @@
         const TICK_RATE_MS = 100;     // 10 ticks per second
         const MOVE_WINDOW_MS = 20000; // 20 second window (configurable rate)
         const INITIAL_FOOD = 500;     // Fixed food count at game start
-        const MAX_BOTS = 99;          // 99 bots + 1 player = 100
+        const MAX_BOTS = 100;         // 100 bots (no player - simulation mode)
         const INITIAL_LENGTH = 5;
         
         // ============================================
@@ -155,7 +152,6 @@
                 this.snakes = new Map();
                 this.food = new Set();
                 this.lastTickTime = 0;
-                this.playerId = 'player';
                 this.moveQueue = new Map(); // Pending moves for next tick
                 this.moveLimit = 3; // Configurable moves per window
             }
@@ -183,12 +179,9 @@
                 this.moveQueue.clear();
                 this.tickCount = 0;
                 
-                // Spawn player
-                this.spawnSnake(this.playerId, true);
-                
-                // Spawn bots
+                // Spawn bots only (no player - simulation mode)
                 for (let i = 0; i < MAX_BOTS; i++) {
-                    this.spawnSnake(`bot_${i}`, false);
+                    this.spawnSnake(`bot_${i}`);
                 }
                 
                 // Initial food - fixed for entire game
@@ -199,7 +192,7 @@
                 this.updateUI();
             }
             
-            spawnSnake(id, isPlayer) {
+            spawnSnake(id) {
                 let attempts = 0;
                 let x, y, dir;
                 
@@ -235,14 +228,13 @@
                 
                 const snake = {
                     id,
-                    isPlayer,
                     body: [],
                     alive: true,
                     direction: dir,
                     lastMoveTime: 0,
                     movesThisWindow: 0,
                     windowStart: Date.now(),
-                    color: isPlayer ? '#0f0' : this.getBotColor(id)
+                    color: this.getBotColor(id)
                 };
                 
                 // Build initial body extending opposite to facing direction
@@ -305,7 +297,7 @@
                 if (!this.isRateLimitEnabled()) return true;
                 
                 const now = Date.now();
-                const limit = snake.isPlayer ? this.getMoveLimit() : 3;
+                const limit = this.getMoveLimit();
                 
                 // Reset window if expired
                 if (now - snake.windowStart >= MOVE_WINDOW_MS) {
@@ -334,9 +326,9 @@
             tick() {
                 this.tickCount++;
                 
-                // Process bot moves (AI)
+                // Process bot moves (AI) for all snakes
                 for (const snake of this.snakes.values()) {
-                    if (!snake.alive || snake.isPlayer) continue;
+                    if (!snake.alive) continue;
                     if (this.canMove(snake)) {
                         const move = this.getBotMove(snake);
                         if (move !== null) {
@@ -375,7 +367,6 @@
                     // Check wall collision
                     if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) {
                         deadSnakes.add(id);
-                        if (snake.isPlayer) this.log('You hit a wall!', 'kill');
                         continue;
                     }
                     
@@ -400,15 +391,15 @@
                             
                             if (snake.body.length > otherSnake.body.length) {
                                 headOnLosers.add(otherId);
-                                this.log(`${snake.isPlayer ? 'YOU' : id} CRUSHED ${otherSnake.isPlayer ? 'YOU' : otherId} (${snake.body.length} vs ${otherSnake.body.length})`, 'kill');
+                                this.log(`${id} CRUSHED ${otherId} (${snake.body.length} vs ${otherSnake.body.length})`, 'kill');
                             } else if (otherSnake.body.length > snake.body.length) {
                                 headOnLosers.add(id);
-                                this.log(`${otherSnake.isPlayer ? 'YOU' : otherId} CRUSHED ${snake.isPlayer ? 'YOU' : id} (${otherSnake.body.length} vs ${snake.body.length})`, 'kill');
+                                this.log(`${otherId} CRUSHED ${id} (${otherSnake.body.length} vs ${snake.body.length})`, 'kill');
                             } else {
                                 // Equal length = both die
                                 headOnLosers.add(id);
                                 headOnLosers.add(otherId);
-                                this.log(`${snake.isPlayer ? 'YOU' : id} and ${otherSnake.isPlayer ? 'YOU' : otherId} TIED and DIED`, 'kill');
+                                this.log(`${id} and ${otherId} TIED and DIED`, 'kill');
                             }
                         }
                     }
@@ -423,7 +414,6 @@
                     for (let i = 0; i < snake.body.length - 1; i++) {
                         if (snake.body[i].x === x && snake.body[i].y === y) {
                             deadSnakes.add(id);
-                            if (snake.isPlayer) this.log('You ran into yourself!', 'kill');
                             break;
                         }
                     }
@@ -447,9 +437,7 @@
                                     // Keep body[0..i], remove body[i+1..end]
                                     const oldLength = otherSnake.body.length;
                                     fracturedSnakes.set(otherId, i);
-                                    if (snake.isPlayer || otherSnake.isPlayer) {
-                                        this.log(`${snake.isPlayer ? 'YOU' : id} CUT ${otherSnake.isPlayer ? 'YOU' : otherId} at ${i}! (${oldLength} → ${i+1})`, 'kill');
-                                    }
+                                    this.log(`${id} CUT ${otherId} at ${i}! (${oldLength} → ${i+1})`, 'kill');
                                 }
                                 break;
                             }
@@ -490,9 +478,6 @@
                     if (this.food.has(foodKey)) {
                         this.food.delete(foodKey);
                         grew = true;
-                        if (snake.isPlayer) {
-                            this.log(`You ate food! Length: ${snake.body.length + 1}`, 'food');
-                        }
                     }
                     
                     // Move: add new head
@@ -770,32 +755,6 @@
                     );
                 }
                 
-                // Player indicator (pulsing effect)
-                const player = this.snakes.get(this.playerId);
-                if (player && player.alive) {
-                    const head = player.body[0];
-                    const pulse = (Math.sin(Date.now() / 200) + 1) / 2; // 0 to 1
-                    
-                    // Outer glow pulse
-                    this.ctx.fillStyle = `rgba(0, 255, 0, ${0.3 + pulse * 0.4})`;
-                    const glowSize = CELL_SIZE + 2 + pulse * 2;
-                    const offset = (glowSize - CELL_SIZE) / 2;
-                    this.ctx.fillRect(
-                        head.x * CELL_SIZE - offset,
-                        head.y * CELL_SIZE - offset,
-                        glowSize,
-                        glowSize
-                    );
-                    
-                    // Inner black dot
-                    this.ctx.fillStyle = '#000';
-                    this.ctx.fillRect(
-                        head.x * CELL_SIZE + 1,
-                        head.y * CELL_SIZE + 1,
-                        CELL_SIZE - 2,
-                        CELL_SIZE - 2
-                    );
-                }
             }
             
             updateUI() {
@@ -804,23 +763,6 @@
                 const alive = Array.from(this.snakes.values()).filter(s => s.alive).length;
                 document.getElementById('aliveDisplay').textContent = alive;
                 document.getElementById('foodDisplay').textContent = this.food.size;
-                
-                // Update moves display
-                if (!this.isRateLimitEnabled()) {
-                    document.getElementById('movesDisplay').textContent = '∞/∞';
-                } else {
-                    const player = this.snakes.get(this.playerId);
-                    if (player) {
-                        const now = Date.now();
-                        const limit = this.getMoveLimit();
-                        if (now - player.windowStart >= MOVE_WINDOW_MS) {
-                            document.getElementById('movesDisplay').textContent = `${limit}/${limit}`;
-                        } else {
-                            document.getElementById('movesDisplay').textContent = 
-                                `${limit - player.movesThisWindow}/${limit}`;
-                        }
-                    }
-                }
             }
             
             start() {
@@ -879,41 +821,6 @@
             document.getElementById('startBtn').disabled = false;
             document.getElementById('pauseBtn').disabled = true;
         });
-        
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => {
-            const player = game.snakes.get(game.playerId);
-            if (!player || !player.alive) return;
-            
-            let direction = null;
-            switch (e.key) {
-                case 'ArrowUp': case 'w': case 'W': direction = 0; break;
-                case 'ArrowRight': case 'd': case 'D': direction = 1; break;
-                case 'ArrowDown': case 's': case 'S': direction = 2; break;
-                case 'ArrowLeft': case 'a': case 'A': direction = 3; break;
-            }
-            
-            if (direction !== null) {
-                e.preventDefault();
-                const success = game.queueMove(game.playerId, direction);
-                if (success && game.canMove(player)) {
-                    // Visual feedback?
-                }
-            }
-        });
-        
-        // Update UI when move rate changes
-        document.getElementById('moveRateInput').addEventListener('input', () => {
-            game.updateUI();
-        });
-        
-        // Update UI when rate limit checkbox changes
-        document.getElementById('rateLimitCheck').addEventListener('change', () => {
-            game.updateUI();
-        });
-        
-        // Keep moves display updated
-        setInterval(() => game.updateUI(), 1000);
     </script>
 </body>
 </html>
