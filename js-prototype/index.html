@@ -439,11 +439,11 @@
                 const head = snake.body[0];
                 const directions = [0, 1, 2, 3]; // up, right, down, left
                 
-                // Filter valid moves (no immediate death)
-                const validMoves = directions.filter(dir => {
+                // Get valid moves (no immediate death)
+                const moveScores = directions.map(dir => {
                     // Prevent 180
                     const opposite = (dir + 2) % 4;
-                    if (snake.direction === opposite && snake.body.length > 1) return false;
+                    if (snake.direction === opposite && snake.body.length > 1) return null;
                     
                     let nx = head.x;
                     let ny = head.y;
@@ -456,48 +456,101 @@
                     
                     // Check self collision
                     for (let i = 0; i < snake.body.length - 1; i++) {
-                        if (snake.body[i].x === nx && snake.body[i].y === ny) return false;
+                        if (snake.body[i].x === nx && snake.body[i].y === ny) return null;
                     }
                     
                     // Check other snakes
                     for (const other of this.snakes.values()) {
                         if (other.id === snake.id || !other.alive) continue;
                         for (const seg of other.body) {
-                            if (seg.x === nx && seg.y === ny) return false;
+                            if (seg.x === nx && seg.y === ny) return null;
                         }
                     }
                     
-                    return true;
-                });
+                    return { dir, nx, ny };
+                }).filter(m => m !== null);
                 
-                if (validMoves.length === 0) return null;
+                if (moveScores.length === 0) return null;
                 
-                // Try to find food
-                let bestMove = validMoves[0];
+                // Score each move
+                let bestMove = moveScores[0].dir;
                 let bestScore = -Infinity;
                 
-                for (const dir of validMoves) {
-                    let nx = head.x;
-                    let ny = head.y;
-                    switch (dir) {
-                        case 0: ny = (ny - 1 + GRID_SIZE) % GRID_SIZE; break;
-                        case 1: nx = (nx + 1) % GRID_SIZE; break;
-                        case 2: ny = (ny + 1) % GRID_SIZE; break;
-                        case 3: nx = (nx - 1 + GRID_SIZE) % GRID_SIZE; break;
+                for (const move of moveScores) {
+                    const { dir, nx, ny } = move;
+                    let score = 0;
+                    
+                    // 1. ATTACK: Can we kill another snake?
+                    for (const other of this.snakes.values()) {
+                        if (other.id === snake.id || !other.alive) continue;
+                        
+                        const otherHead = other.body[0];
+                        const distToOtherHead = Math.abs(nx - otherHead.x) + Math.abs(ny - otherHead.y);
+                        
+                        // If we're close to their head, try to cut them off
+                        if (distToOtherHead <= 3) {
+                            // Check if we're in their path
+                            const theirDir = other.direction;
+                            let theirNextX = otherHead.x;
+                            let theirNextY = otherHead.y;
+                            switch (theirDir) {
+                                case 0: theirNextY = (theirNextY - 1 + GRID_SIZE) % GRID_SIZE; break;
+                                case 1: theirNextX = (theirNextX + 1) % GRID_SIZE; break;
+                                case 2: theirNextY = (theirNextY + 1) % GRID_SIZE; break;
+                                case 3: theirNextX = (theirNextX - 1 + GRID_SIZE) % GRID_SIZE; break;
+                            }
+                            
+                            // Bonus for blocking their path
+                            if (nx === theirNextX && ny === theirNextY) {
+                                score += 1000; // Huge bonus for guaranteed kill
+                            }
+                            
+                            // Bonus for getting in front of them
+                            if (distToOtherHead === 1) {
+                                score += 200;
+                            }
+                        }
+                        
+                        // Can we cut across their body?
+                        for (let i = 0; i < other.body.length; i++) {
+                            const seg = other.body[i];
+                            const distToSeg = Math.abs(nx - seg.x) + Math.abs(ny - seg.y);
+                            if (distToSeg === 1) {
+                                // We're adjacent to their body - good position
+                                score += 50;
+                            }
+                        }
                     }
                     
-                    // Score based on nearest food
-                    let minFoodDist = Infinity;
+                    // 2. SURVIVAL: Check for danger (other snake heads nearby)
+                    let dangerScore = 0;
+                    for (const other of this.snakes.values()) {
+                        if (other.id === snake.id || !other.alive) continue;
+                        const otherHead = other.body[0];
+                        const dist = Math.abs(nx - otherHead.x) + Math.abs(ny - otherHead.y);
+                        if (dist <= 2) {
+                            dangerScore -= 100; // Avoid close encounters
+                        }
+                    }
+                    score += dangerScore;
+                    
+                    // 3. FOOD: Near food is good
+                    let foodScore = 0;
                     for (const foodKey of this.food) {
                         const [fx, fy] = foodKey.split(',').map(Number);
                         const dist = Math.abs(nx - fx) + Math.abs(ny - fy);
-                        minFoodDist = Math.min(minFoodDist, dist);
+                        if (dist === 0) {
+                            foodScore += 30; // Eating food
+                        } else if (dist <= 5) {
+                            foodScore += (6 - dist) * 3; // Nearby food
+                        }
                     }
+                    score += foodScore;
                     
-                    // Score based on open space (flood fill approx)
+                    // 4. SPACE: Keep some room to maneuver
                     let space = 0;
-                    for (let dx = -3; dx <= 3; dx++) {
-                        for (let dy = -3; dy <= 3; dy++) {
+                    for (let dx = -2; dx <= 2; dx++) {
+                        for (let dy = -2; dy <= 2; dy++) {
                             const cx = (nx + dx + GRID_SIZE) % GRID_SIZE;
                             const cy = (ny + dy + GRID_SIZE) % GRID_SIZE;
                             let occupied = false;
@@ -514,8 +567,20 @@
                             if (!occupied) space++;
                         }
                     }
+                    score += space;
                     
-                    const score = -minFoodDist * 10 + space;
+                    // 5. AGGRESSION: Move toward nearest enemy head
+                    let nearestEnemyDist = Infinity;
+                    for (const other of this.snakes.values()) {
+                        if (other.id === snake.id || !other.alive) continue;
+                        const otherHead = other.body[0];
+                        const dist = Math.abs(nx - otherHead.x) + Math.abs(ny - otherHead.y);
+                        nearestEnemyDist = Math.min(nearestEnemyDist, dist);
+                    }
+                    if (nearestEnemyDist !== Infinity) {
+                        score -= nearestEnemyDist * 2; // Closer to enemies = higher score
+                    }
+                    
                     if (score > bestScore) {
                         bestScore = score;
                         bestMove = dir;
