@@ -101,11 +101,18 @@
             <label>YOUR MOVES</label>
             <value id="movesDisplay">3/3</value>
         </div>
+        <div class="stat">
+            <label>MOVE RATE</label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <input type="number" id="moveRateInput" value="3" min="1" max="100" style="width: 40px; background: #222; border: 1px solid #333; color: #0f0; padding: 4px;">
+                <span style="font-size: 11px; color: #666;">/ 20s</span>
+            </div>
+        </div>
         <button id="startBtn">START</button>
         <button id="pauseBtn" disabled>PAUSE</button>
         <button id="resetBtn">RESET</button>
         <div style="font-size: 12px; color: #666;">
-            ARROWS to move • 3 moves/minute
+            ARROWS to move • Set your move rate
         </div>
     </div>
     
@@ -128,8 +135,7 @@
         const CANVAS_SIZE = 800;      // Render size
         const CELL_SIZE = CANVAS_SIZE / GRID_SIZE; // 4px per cell
         const TICK_RATE_MS = 100;     // 10 ticks per second
-        const MOVES_PER_MINUTE = 3;   // Rate limit
-        const MOVE_WINDOW_MS = 60000; // 1 minute window
+        const MOVE_WINDOW_MS = 20000; // 20 second window (configurable rate)
         const FOOD_PER_TICK = 8;      // Food spawn rate
         const MAX_BOTS = 99;          // 99 bots + 1 player = 100
         const INITIAL_LENGTH = 5;
@@ -148,6 +154,12 @@
                 this.lastTickTime = 0;
                 this.playerId = 'player';
                 this.moveQueue = new Map(); // Pending moves for next tick
+                this.moveLimit = 3; // Configurable moves per window
+            }
+            
+            getMoveLimit() {
+                const input = document.getElementById('moveRateInput');
+                return parseInt(input?.value || '3', 10);
             }
             
             log(msg, type = '') {
@@ -262,6 +274,7 @@
             
             canMove(snake) {
                 const now = Date.now();
+                const limit = snake.isPlayer ? this.getMoveLimit() : 3;
                 
                 // Reset window if expired
                 if (now - snake.windowStart >= MOVE_WINDOW_MS) {
@@ -269,7 +282,7 @@
                     snake.movesThisWindow = 0;
                 }
                 
-                return snake.movesThisWindow < MOVES_PER_MINUTE;
+                return snake.movesThisWindow < limit;
             }
             
             queueMove(snakeId, direction) {
@@ -595,11 +608,12 @@
                 const player = this.snakes.get(this.playerId);
                 if (player) {
                     const now = Date.now();
+                    const limit = this.getMoveLimit();
                     if (now - player.windowStart >= MOVE_WINDOW_MS) {
-                        document.getElementById('movesDisplay').textContent = '3/3';
+                        document.getElementById('movesDisplay').textContent = `${limit}/${limit}`;
                     } else {
                         document.getElementById('movesDisplay').textContent = 
-                            `${MOVES_PER_MINUTE - player.movesThisWindow}/3`;
+                            `${limit - player.movesThisWindow}/${limit}`;
                     }
                 }
             }
@@ -681,6 +695,11 @@
                     // Visual feedback?
                 }
             }
+        });
+        
+        // Update UI when move rate changes
+        document.getElementById('moveRateInput').addEventListener('input', () => {
+            game.updateUI();
         });
         
         // Keep moves display updated
