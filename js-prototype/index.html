@@ -102,8 +102,11 @@
             <value id="movesDisplay">3/3</value>
         </div>
         <div class="stat">
-            <label>MOVE RATE</label>
-            <div style="display: flex; align-items: center; gap: 4px;">
+            <label>
+                <input type="checkbox" id="rateLimitCheck" checked style="margin-right: 4px;">
+                RATE LIMIT
+            </label>
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 4px;">
                 <input type="number" id="moveRateInput" value="3" min="1" max="100" style="width: 40px; background: #222; border: 1px solid #333; color: #0f0; padding: 4px;">
                 <span style="font-size: 11px; color: #666;">/ 20s</span>
             </div>
@@ -112,7 +115,7 @@
         <button id="pauseBtn" disabled>PAUSE</button>
         <button id="resetBtn">RESET</button>
         <div style="font-size: 12px; color: #666;">
-            ARROWS to move • Set your move rate
+            ARROWS to move • Uncheck for realtime
         </div>
     </div>
     
@@ -272,7 +275,14 @@
                 return false;
             }
             
+            isRateLimitEnabled() {
+                return document.getElementById('rateLimitCheck')?.checked ?? true;
+            }
+            
             canMove(snake) {
+                // Realtime mode - no limit
+                if (!this.isRateLimitEnabled()) return true;
+                
                 const now = Date.now();
                 const limit = snake.isPlayer ? this.getMoveLimit() : 3;
                 
@@ -596,15 +606,20 @@
                 document.getElementById('aliveDisplay').textContent = alive;
                 document.getElementById('foodDisplay').textContent = this.food.size;
                 
-                const player = this.snakes.get(this.playerId);
-                if (player) {
-                    const now = Date.now();
-                    const limit = this.getMoveLimit();
-                    if (now - player.windowStart >= MOVE_WINDOW_MS) {
-                        document.getElementById('movesDisplay').textContent = `${limit}/${limit}`;
-                    } else {
-                        document.getElementById('movesDisplay').textContent = 
-                            `${limit - player.movesThisWindow}/${limit}`;
+                // Update moves display
+                if (!this.isRateLimitEnabled()) {
+                    document.getElementById('movesDisplay').textContent = '∞/∞';
+                } else {
+                    const player = this.snakes.get(this.playerId);
+                    if (player) {
+                        const now = Date.now();
+                        const limit = this.getMoveLimit();
+                        if (now - player.windowStart >= MOVE_WINDOW_MS) {
+                            document.getElementById('movesDisplay').textContent = `${limit}/${limit}`;
+                        } else {
+                            document.getElementById('movesDisplay').textContent = 
+                                `${limit - player.movesThisWindow}/${limit}`;
+                        }
                     }
                 }
             }
@@ -690,6 +705,11 @@
         
         // Update UI when move rate changes
         document.getElementById('moveRateInput').addEventListener('input', () => {
+            game.updateUI();
+        });
+        
+        // Update UI when rate limit checkbox changes
+        document.getElementById('rateLimitCheck').addEventListener('change', () => {
             game.updateUI();
         });
         
