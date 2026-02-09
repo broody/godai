@@ -354,48 +354,94 @@
                     nextPositions.set(id, {x: nx, y: ny, snake});
                 }
                 
-                // Check collisions
+                // Track fractured snakes (body index where cut happens)
+                const fracturedSnakes = new Map(); // snakeId -> body index to keep (tail is removed)
+                
+                // Phase 1: Check head-on collisions (longer snake wins)
+                const headOnLosers = new Set();
                 for (const [id, next] of nextPositions) {
-                    const {x, y, snake} = next;
+                    if (headOnLosers.has(id)) continue;
                     
-                    // Check wall (shouldn't happen with toroidal)
-                    // Check self collision
-                    for (let i = 0; i < snake.body.length - 1; i++) {
-                        if (snake.body[i].x === x && snake.body[i].y === y) {
-                            deadSnakes.add(id);
-                            break;
-                        }
-                    }
-                    
-                    // Check other snake collision
-                    for (const [otherId, otherSnake] of this.snakes) {
-                        if (otherId === id || !otherSnake.alive) continue;
+                    for (const [otherId, otherNext] of nextPositions) {
+                        if (otherId <= id || headOnLosers.has(otherId)) continue; // Avoid double check
                         
-                        // Check if hitting other snake's body
-                        for (const seg of otherSnake.body) {
-                            if (seg.x === x && seg.y === y) {
-                                deadSnakes.add(id);
-                                if (snake.isPlayer || otherSnake.isPlayer) {
-                                    this.log(`${snake.isPlayer ? 'YOU' : id} died hitting ${otherSnake.isPlayer ? 'YOU' : otherId}`, 'kill');
-                                }
-                                break;
-                            }
-                        }
-                        
-                        // Check head-on collision
-                        if (nextPositions.has(otherId)) {
-                            const otherNext = nextPositions.get(otherId);
-                            if (otherNext.x === x && otherNext.y === y) {
-                                // Both die on head-on
-                                deadSnakes.add(id);
-                                deadSnakes.add(otherId);
-                                this.log(`${snake.isPlayer ? 'YOU' : id} and ${otherSnake.isPlayer ? 'YOU' : otherId} COLLIDED`, 'kill');
+                        if (next.x === otherNext.x && next.y === otherNext.y) {
+                            // Head-on collision! Longer snake wins
+                            const snake = next.snake;
+                            const otherSnake = otherNext.snake;
+                            
+                            if (snake.body.length > otherSnake.body.length) {
+                                headOnLosers.add(otherId);
+                                this.log(`${snake.isPlayer ? 'YOU' : id} CRUSHED ${otherSnake.isPlayer ? 'YOU' : otherId} (${snake.body.length} vs ${otherSnake.body.length})`, 'kill');
+                            } else if (otherSnake.body.length > snake.body.length) {
+                                headOnLosers.add(id);
+                                this.log(`${otherSnake.isPlayer ? 'YOU' : otherId} CRUSHED ${snake.isPlayer ? 'YOU' : id} (${otherSnake.body.length} vs ${snake.body.length})`, 'kill');
+                            } else {
+                                // Equal length = both die
+                                headOnLosers.add(id);
+                                headOnLosers.add(otherId);
+                                this.log(`${snake.isPlayer ? 'YOU' : id} and ${otherSnake.isPlayer ? 'YOU' : otherId} TIED and DIED`, 'kill');
                             }
                         }
                     }
                 }
                 
+                // Phase 2: Check body collisions (attacker fractures defender)
+                for (const [id, next] of nextPositions) {
+                    if (headOnLosers.has(id)) continue; // Already dead
+                    const {x, y, snake} = next;
+                    
+                    // Check self collision first
+                    for (let i = 0; i < snake.body.length - 1; i++) {
+                        if (snake.body[i].x === x && snake.body[i].y === y) {
+                            deadSnakes.add(id);
+                            if (snake.isPlayer) this.log('You ran into yourself!', 'kill');
+                            break;
+                        }
+                    }
+                    if (deadSnakes.has(id)) continue;
+                    
+                    // Check hitting other snake's body
+                    for (const [otherId, otherSnake] of this.snakes) {
+                        if (otherId === id || !otherSnake.alive) continue;
+                        if (headOnLosers.has(otherId)) continue; // They're already dead
+                        
+                        for (let i = 0; i < otherSnake.body.length; i++) {
+                            const seg = otherSnake.body[i];
+                            if (seg.x === x && seg.y === y) {
+                                if (i === 0) {
+                                    // Hit their head - this is handled by head-on (shouldn't happen here)
+                                    // But if it does, both die
+                                    deadSnakes.add(id);
+                                    headOnLosers.add(otherId);
+                                } else {
+                                    // Hit their body - fracture them at this point
+                                    // Keep body[0..i], remove body[i+1..end]
+                                    const oldLength = otherSnake.body.length;
+                                    fracturedSnakes.set(otherId, i);
+                                    if (snake.isPlayer || otherSnake.isPlayer) {
+                                        this.log(`${snake.isPlayer ? 'YOU' : id} CUT ${otherSnake.isPlayer ? 'YOU' : otherId} at ${i}! (${oldLength} → ${i+1})`, 'kill');
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Apply fractures (remove tail segments)
+                for (const [id, keepIndex] of fracturedSnakes) {
+                    const snake = this.snakes.get(id);
+                    if (snake && snake.alive) {
+                        // Keep only body[0..keepIndex], truncate the rest
+                        snake.body = snake.body.slice(0, keepIndex + 1);
+                    }
+                }
+                
                 // Apply deaths
+                for (const id of headOnLosers) {
+                    deadSnakes.add(id);
+                }
                 for (const id of deadSnakes) {
                     const snake = this.snakes.get(id);
                     if (snake) {
@@ -454,17 +500,28 @@
                         case 3: nx = (nx - 1 + GRID_SIZE) % GRID_SIZE; break;
                     }
                     
-                    // Check self collision
+                    // Check self collision (always fatal)
                     for (let i = 0; i < snake.body.length - 1; i++) {
                         if (snake.body[i].x === nx && snake.body[i].y === ny) return null;
                     }
                     
-                    // Check other snakes
+                    // Check other snakes - AVOID only dangerous heads
                     for (const other of this.snakes.values()) {
                         if (other.id === snake.id || !other.alive) continue;
-                        for (const seg of other.body) {
-                            if (seg.x === nx && seg.y === ny) return null;
+                        
+                        const otherHead = other.body[0];
+                        
+                        // Check if we're hitting their head
+                        if (otherHead.x === nx && otherHead.y === ny) {
+                            // Head-on collision! Only allow if we're strictly longer
+                            if (snake.body.length <= other.body.length) {
+                                return null; // We'll die or tie, avoid
+                            }
+                            // We're longer, so this is a valid attack - continue checking
                         }
+                        
+                        // Hitting their body is now VALID - it's a cut attack!
+                        // We don't return null here anymore
                     }
                     
                     return { dir, nx, ny };
@@ -480,16 +537,26 @@
                     const { dir, nx, ny } = move;
                     let score = 0;
                     
-                    // 1. ATTACK: Can we kill another snake?
+                    // 1. ATTACK: Can we kill/fracture another snake?
                     for (const other of this.snakes.values()) {
                         if (other.id === snake.id || !other.alive) continue;
                         
                         const otherHead = other.body[0];
                         const distToOtherHead = Math.abs(nx - otherHead.x) + Math.abs(ny - otherHead.y);
                         
-                        // If we're close to their head, try to cut them off
-                        if (distToOtherHead <= 3) {
-                            // Check if we're in their path
+                        // HEAD-ON: If we're longer, go for it!
+                        if (distToOtherHead === 1) {
+                            if (snake.body.length > other.body.length) {
+                                score += 2000; // CRUSH them!
+                            } else if (snake.body.length === other.body.length) {
+                                score -= 500; // Tie = death, avoid
+                            } else {
+                                score -= 1000; // We'll die, avoid!
+                            }
+                        }
+                        
+                        // Predict their next move and try to head-on
+                        if (distToOtherHead <= 2) {
                             const theirDir = other.direction;
                             let theirNextX = otherHead.x;
                             let theirNextY = otherHead.y;
@@ -500,24 +567,24 @@
                                 case 3: theirNextX = (theirNextX - 1 + GRID_SIZE) % GRID_SIZE; break;
                             }
                             
-                            // Bonus for blocking their path
-                            if (nx === theirNextX && ny === theirNextY) {
-                                score += 1000; // Huge bonus for guaranteed kill
-                            }
-                            
-                            // Bonus for getting in front of them
-                            if (distToOtherHead === 1) {
-                                score += 200;
+                            if (nx === theirNextX && ny === theirNextY && snake.body.length > other.body.length) {
+                                score += 1500; // Intercept and crush!
                             }
                         }
                         
-                        // Can we cut across their body?
-                        for (let i = 0; i < other.body.length; i++) {
+                        // BODY CUT: Can we cut their body?
+                        for (let i = 1; i < other.body.length; i++) { // Start at 1 to skip head
                             const seg = other.body[i];
+                            if (seg.x === nx && seg.y === ny) {
+                                // We're cutting them at position i!
+                                const segmentsLost = other.body.length - (i + 1);
+                                score += 500 + segmentsLost * 50; // Bonus for longer cuts
+                            }
+                            
+                            // Adjacent to body = good setup position
                             const distToSeg = Math.abs(nx - seg.x) + Math.abs(ny - seg.y);
                             if (distToSeg === 1) {
-                                // We're adjacent to their body - good position
-                                score += 50;
+                                score += 30;
                             }
                         }
                     }
