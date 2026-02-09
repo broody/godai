@@ -585,10 +585,24 @@
                     );
                 }
                 
-                // Player indicator (black dot in center of head)
+                // Player indicator (pulsing effect)
                 const player = this.snakes.get(this.playerId);
                 if (player && player.alive) {
                     const head = player.body[0];
+                    const pulse = (Math.sin(Date.now() / 200) + 1) / 2; // 0 to 1
+                    
+                    // Outer glow pulse
+                    this.ctx.fillStyle = `rgba(0, 255, 0, ${0.3 + pulse * 0.4})`;
+                    const glowSize = CELL_SIZE + 2 + pulse * 2;
+                    const offset = (glowSize - CELL_SIZE) / 2;
+                    this.ctx.fillRect(
+                        head.x * CELL_SIZE - offset,
+                        head.y * CELL_SIZE - offset,
+                        glowSize,
+                        glowSize
+                    );
+                    
+                    // Inner black dot
                     this.ctx.fillStyle = '#000';
                     this.ctx.fillRect(
                         head.x * CELL_SIZE + 1,
