@@ -209,9 +209,19 @@
                     color: isPlayer ? '#0f0' : this.getBotColor(id)
                 };
                 
-                // Build initial body
+                // Build initial body extending opposite to facing direction
+                let dx = 0, dy = 0;
+                switch (snake.direction) {
+                    case 0: dy = 1; break; // facing up, body extends down
+                    case 1: dx = -1; break; // facing right, body extends left
+                    case 2: dy = -1; break; // facing down, body extends up
+                    case 3: dx = 1; break; // facing left, body extends right
+                }
                 for (let i = 0; i < INITIAL_LENGTH; i++) {
-                    snake.body.push({x, y});
+                    snake.body.push({
+                        x: (x + dx * i + GRID_SIZE) % GRID_SIZE,
+                        y: (y + dy * i + GRID_SIZE) % GRID_SIZE
+                    });
                 }
                 
                 this.snakes.set(id, snake);
@@ -267,9 +277,9 @@
                 if (!snake || !snake.alive) return false;
                 if (!this.canMove(snake)) return false;
                 
-                // Prevent 180-degree turns
+                // Prevent 180-degree turns (skip for first move)
                 const opposite = (direction + 2) % 4;
-                if (snake.direction === opposite && snake.body.length > 1) {
+                if (snake.lastMoveTime > 0 && snake.direction === opposite && snake.body.length > 1) {
                     return false;
                 }
                 
