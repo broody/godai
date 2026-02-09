@@ -23,9 +23,28 @@ A fully onchain battle royale snake game built for AI agents. 100 snakes (1 play
 - **180° Rule**: Cannot reverse direction (first move exempted)
 
 ### Death & Fracturing
-- **Condition**: Head collision with any snake body (including own)
-- **Head-on Collision**: Both snakes die
-- **On Death**: Entire body vanishes instantly (no food conversion)
+
+#### Self Collision
+- Running into your own body = **instant death**
+
+#### Head-on Collision
+- Both snakes move into the same cell simultaneously
+- **Longer snake wins**, shorter snake dies instantly
+- **Equal length** = both snakes die
+- Winner continues moving, loser body vanishes
+
+#### Body Attack (Fracturing)
+- Any snake can attack another snake's body
+- Attacker moves into defender's body cell
+- **Defender is fractured** at the collision point
+  - Body segments from collision point onward are **removed**
+  - Head through collision segment remain (attacker becomes shorter)
+  - Example: 20-segment snake cut at position 5 → keeps 6 segments (indices 0-5)
+- **Attacker survives** and continues
+- Strategic for cutting down long snakes to manageable size
+
+#### On Death
+- Entire body vanishes instantly (no food conversion)
 - **Permadeath**: No respawning
 
 ### Food System
@@ -37,13 +56,14 @@ A fully onchain battle royale snake game built for AI agents. 100 snakes (1 play
 ## Bot AI
 
 ### Goals (Priority Order)
-1. **Attack**: Block enemy paths for guaranteed kills (+1000 bonus)
-2. **Pressure**: Get in front of enemy heads (+200 bonus)
-3. **Cutting**: Position adjacent to enemy bodies (+50 bonus)
-4. **Survival**: Avoid close encounters with enemy heads (-100 per danger)
-5. **Food**: Eat nearby food (+30 for eating, scaled for proximity)
-6. **Aggression**: Move toward nearest enemy (-2 per distance unit)
-7. **Space**: Maintain maneuvering room (open cells in 5x5 area)
+1. **Head-on Dominance**: Crush shorter snakes (+2000 bonus for winning head-on)
+2. **Head-on Avoidance**: Flee from longer snakes (-1000 penalty for losing head-on)
+3. **Body Cutting**: Cut enemy snakes for massive damage (+500 base + 50 per segment cut)
+4. **Intercept**: Block enemy's predicted path (+1500 bonus)
+5. **Survival**: Avoid dangerous encounters with longer snakes
+6. **Food**: Eat nearby food (+30 for eating, scaled for proximity)
+7. **Aggression**: Move toward nearest enemy (-2 per distance unit)
+8. **Space**: Maintain maneuvering room (open cells in 5x5 area)
 
 ### Behavior
 - Bots actively hunt other snakes
@@ -154,20 +174,21 @@ struct Position {
 ## Agent Strategy Tips
 
 ### Optimal Play Patterns
-1. **Early Game**: Rush food aggressively while arena is crowded
-2. **Mid Game**: Hunt wounded/short snakes, avoid long ones
-3. **Late Game**: Zone control, force enemies into bad positions
+1. **Early Game**: Rush food to gain length advantage for head-on dominance
+2. **Mid Game**: Cut long snakes down to size, pick off shorter ones in head-ons
+3. **Late Game**: Use length advantage to force head-ons, zone smaller snakes
 
 ### Common Mistakes
-- Chasing food into crowded areas
-- Cutting without escape route
+- Chasing food into longer snake's kill zone
+- Attempting head-on against equal or longer snakes
+- Not prioritizing body cuts (massive damage potential)
 - Ignoring rate limit (wasted moves)
-- Not predicting enemy movement
 
 ### Meta Evolution
 - Early meta: Pure food collection
-- Mature meta: Predictive blocking and feints
-- Advanced: Baiting enemies into traps
+- Mature meta: Length management and selective head-ons
+- Advanced: Calculated body cuts and baiting into traps
+- Expert: Using cuts to deliberately shorten enemies before head-on finish
 
 ## Implementation Notes
 
