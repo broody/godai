@@ -534,14 +534,12 @@
                 this.ctx.fillStyle = '#f0f';
                 for (const foodKey of this.food) {
                     const [x, y] = foodKey.split(',').map(Number);
-                    this.ctx.beginPath();
-                    this.ctx.arc(
-                        x * CELL_SIZE + CELL_SIZE/2,
-                        y * CELL_SIZE + CELL_SIZE/2,
-                        CELL_SIZE/3,
-                        0, Math.PI * 2
+                    this.ctx.fillRect(
+                        x * CELL_SIZE,
+                        y * CELL_SIZE,
+                        CELL_SIZE,
+                        CELL_SIZE
                     );
-                    this.ctx.fill();
                 }
                 
                 // Draw snakes
@@ -554,36 +552,35 @@
                         const alpha = 1 - (i / snake.body.length) * 0.5;
                         this.ctx.globalAlpha = alpha;
                         this.ctx.fillRect(
-                            seg.x * CELL_SIZE + 0.5,
-                            seg.y * CELL_SIZE + 0.5,
-                            CELL_SIZE - 1,
-                            CELL_SIZE - 1
+                            seg.x * CELL_SIZE,
+                            seg.y * CELL_SIZE,
+                            CELL_SIZE,
+                            CELL_SIZE
                         );
                     }
                     this.ctx.globalAlpha = 1;
                     
-                    // Draw head brighter
+                    // Draw head brighter (full cell, no alpha)
                     const head = snake.body[0];
                     this.ctx.fillStyle = '#fff';
+                    this.ctx.fillRect(
+                        head.x * CELL_SIZE,
+                        head.y * CELL_SIZE,
+                        CELL_SIZE,
+                        CELL_SIZE
+                    );
+                }
+                
+                // Player indicator (black dot in center of head)
+                const player = this.snakes.get(this.playerId);
+                if (player && player.alive) {
+                    const head = player.body[0];
+                    this.ctx.fillStyle = '#000';
                     this.ctx.fillRect(
                         head.x * CELL_SIZE + 1,
                         head.y * CELL_SIZE + 1,
                         CELL_SIZE - 2,
                         CELL_SIZE - 2
-                    );
-                }
-                
-                // Player indicator
-                const player = this.snakes.get(this.playerId);
-                if (player && player.alive) {
-                    const head = player.body[0];
-                    this.ctx.strokeStyle = '#fff';
-                    this.ctx.lineWidth = 2;
-                    this.ctx.strokeRect(
-                        head.x * CELL_SIZE,
-                        head.y * CELL_SIZE,
-                        CELL_SIZE,
-                        CELL_SIZE
                     );
                 }
             }
